@@ -16,7 +16,7 @@ struct Ball {
 fn main() {
     let window_descriptor = WindowDescriptor {
         title: "Pong".to_string(),
-        mode: WindowMode::Fullscreen {use_size: true},
+        mode: WindowMode::Fullscreen {use_size: false},
         ..Default::default()
     };
 
@@ -34,7 +34,11 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
     ) {
     commands
-        .spawn(OrthographicCameraBundle::new_2d())
+        .spawn({
+            let mut bundle = OrthographicCameraBundle::new_2d();
+            bundle.transform.scale = Vec3::new(1.1, 1.1, 1.0);
+            bundle
+        })
         .spawn(UiCameraBundle::default());
     commands
         .spawn(SpriteBundle {
@@ -77,14 +81,14 @@ fn ball_wall_bounce_system(
     mut query: Query<(&mut Ball, &mut Transform)>,
 ) {
     for (mut ball, mut transform) in query.iter_mut() {
-        if transform.translation.y < -365.0 {
-            transform.translation.y = -350.0;
+        if transform.translation.y < -360.0 {
+            transform.translation.y = -360.0;
             if ball.velocity.y < 0.0 {
                 ball.velocity.y = -ball.velocity.y;
             }
         }
-        if transform.translation.y > 350.0 {
-            transform.translation.y = 350.0;
+        if transform.translation.y > 360.0 {
+            transform.translation.y = 360.0;
             if ball.velocity.y > 0.0 {
                 ball.velocity.y = -ball.velocity.y;
             }
