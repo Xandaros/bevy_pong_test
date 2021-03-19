@@ -1,4 +1,8 @@
-use bevy::{window::WindowMode, prelude::*};
+use bevy::{
+    window::WindowMode,
+    prelude::*,
+    sprite::collide_aabb::{collide, Collision}
+};
 
 enum Side {
     Left,
@@ -25,7 +29,9 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup.system())
         .add_system(ball_wall_bounce_system.system())
+        .add_system(ball_paddle_bounce_system.system())
         .add_system(ball_move_system.system())
+        .add_system(paddle_move_system.system())
         .run();
 }
 
@@ -66,6 +72,36 @@ fn setup(
         .with(Ball {velocity: Vec2::new(128.0, 128.0)});
 }
 
+fn paddle_move_system(
+    time: Res<Time>,
+    mut query: Query<(&Paddle, &mut Transform)>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    for (paddle, mut transform) in query.iter_mut() {
+        let mut movement = 0.0;
+        match paddle.side {
+            Side::Left => {
+                if keyboard.pressed(KeyCode::W) {
+                    movement += 1.0;
+                }
+                if keyboard.pressed(KeyCode::S) {
+                    movement -= 1.0;
+                }
+            },
+            Side::Right => {
+                if keyboard.pressed(KeyCode::Up) {
+                    movement += 1.0;
+                }
+                if keyboard.pressed(KeyCode::Down) {
+                    movement -= 1.0;
+                }
+            }
+        }
+        transform.translation.y += 128.0 * movement * time.delta_seconds();
+        transform.translation.y = transform.translation.y.clamp(-360.0, 360.0);
+    }
+}
+
 fn ball_move_system(
     time: Res<Time>,
     mut query: Query<(&Ball, &mut Transform)>,
@@ -91,6 +127,30 @@ fn ball_wall_bounce_system(
             transform.translation.y = 360.0;
             if ball.velocity.y > 0.0 {
                 ball.velocity.y = -ball.velocity.y;
+            }
+        }
+    }
+}
+
+fn ball_paddle_bounce_system(
+    mut ball_query: Query<(&mut Ball, &Sprite, &Transform)>,
+    paddle_query: Query<(&Paddle, &Sprite, &Transform)>,
+) {
+    for (mut ball, ball_sprite, ball_transform) in ball_query.iter_mut() {
+        for (paddle, paddle_sprite, paddle_transform) in paddle_query.iter() {
+            if collide(ball_transform.translation, ball_sprite.size, paddle_transform.translation, paddle_sprite.size).is_some() {
+                match paddle.side {
+                    Side::Left => {
+                        if ball.velocity.x < 0.0 {
+                            ball.velocity.x = -ball.velocity.x;
+                        }
+                    },
+                    Side::Right => {
+                        if ball.velocity.x > 0.0 {
+                            ball.velocity.x = -ball.velocity.x;
+                        }
+                    }
+                }
             }
         }
     }
