@@ -1,8 +1,7 @@
-use bevy::{
-    window::WindowMode,
-    prelude::*,
-    sprite::collide_aabb::{collide, Collision}
-};
+use bevy::{core::FixedTimestep, prelude::*, sprite::collide_aabb::collide, window::WindowMode};
+
+const WINDOW_WIDTH: f32 = 1920.0;
+const WINDOW_HEIGHT: f32 = 1080.0;
 
 enum Side {
     Left,
@@ -21,6 +20,8 @@ fn main() {
     let window_descriptor = WindowDescriptor {
         title: "Pong".to_string(),
         mode: WindowMode::Fullscreen {use_size: false},
+        width: 1920.0,
+        height: 1080.0,
         ..Default::default()
     };
 
@@ -38,27 +39,25 @@ fn main() {
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut windows: ResMut<Windows>,
     ) {
+    windows.get_primary_mut().unwrap().update_scale_factor_from_backend(1.0);
     commands
-        .spawn({
-            let mut bundle = OrthographicCameraBundle::new_2d();
-            bundle.transform.scale = Vec3::new(1.1, 1.1, 1.0);
-            bundle
-        })
+        .spawn(OrthographicCameraBundle::new_2d())
         .spawn(UiCameraBundle::default());
     commands
         .spawn(SpriteBundle {
             material: materials.add(Color::rgb(1.0, 1.0, 1.0).into()),
-            transform: Transform::from_xyz(-512.0, 0.0, 0.0),
-            sprite: Sprite::new(Vec2::new(30.0, 120.0)),
+            transform: Transform::from_xyz(-WINDOW_WIDTH / 2.0 + 35.0, 0.0, 0.0),
+            sprite: Sprite::new(Vec2::new(30.0, 240.0)),
             ..Default::default()
         })
         .with(Paddle {side: Side::Left});
     commands
         .spawn(SpriteBundle {
             material: materials.add(Color::rgb(1.0, 1.0, 1.0).into()),
-            transform: Transform::from_xyz(512.0, 0.0, 0.0),
-            sprite: Sprite::new(Vec2::new(30.0, 120.0)),
+            transform: Transform::from_xyz(WINDOW_WIDTH / 2.0 - 35.0, 0.0, 0.0),
+            sprite: Sprite::new(Vec2::new(30.0, 240.0)),
             ..Default::default()
         })
         .with(Paddle {side: Side::Right});
@@ -69,7 +68,7 @@ fn setup(
             sprite: Sprite::new(Vec2::new(8.0, 8.0)),
             ..Default::default()
         })
-        .with(Ball {velocity: Vec2::new(128.0, 128.0)});
+        .with(Ball {velocity: Vec2::new(256.0, 256.0)});
 }
 
 fn paddle_move_system(
@@ -97,8 +96,8 @@ fn paddle_move_system(
                 }
             }
         }
-        transform.translation.y += 128.0 * movement * time.delta_seconds();
-        transform.translation.y = transform.translation.y.clamp(-360.0, 360.0);
+        transform.translation.y += 256.0 * movement * time.delta_seconds();
+        transform.translation.y = transform.translation.y.clamp(-WINDOW_HEIGHT / 2.0, WINDOW_HEIGHT / 2.0);
     }
 }
 
@@ -117,14 +116,14 @@ fn ball_wall_bounce_system(
     mut query: Query<(&mut Ball, &mut Transform)>,
 ) {
     for (mut ball, mut transform) in query.iter_mut() {
-        if transform.translation.y < -360.0 {
-            transform.translation.y = -360.0;
+        if transform.translation.y < -WINDOW_HEIGHT / 2.0 {
+            transform.translation.y = -WINDOW_HEIGHT / 2.0;
             if ball.velocity.y < 0.0 {
                 ball.velocity.y = -ball.velocity.y;
             }
         }
-        if transform.translation.y > 360.0 {
-            transform.translation.y = 360.0;
+        if transform.translation.y > WINDOW_HEIGHT / 2.0 {
+            transform.translation.y = WINDOW_HEIGHT / 2.0;
             if ball.velocity.y > 0.0 {
                 ball.velocity.y = -ball.velocity.y;
             }
