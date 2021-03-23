@@ -1,4 +1,4 @@
-use bevy::{core::FixedTimestep, prelude::*, sprite::collide_aabb::collide, window::WindowMode};
+use bevy::{prelude::*, sprite::collide_aabb::collide, window::WindowMode};
 
 const WINDOW_WIDTH: f32 = 1920.0;
 const WINDOW_HEIGHT: f32 = 1080.0;
@@ -6,6 +6,12 @@ const WINDOW_HEIGHT: f32 = 1080.0;
 enum Side {
     Left,
     Right,
+}
+
+#[derive(Default)]
+struct Scores {
+    left: u16,
+    right: u16,
 }
 
 struct Paddle {
@@ -27,12 +33,15 @@ fn main() {
 
     App::build()
         .insert_resource(window_descriptor)
+        .insert_resource(Scores::default())
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup.system())
         .add_system(ball_wall_bounce_system.system())
         .add_system(ball_paddle_bounce_system.system())
         .add_system(ball_move_system.system())
         .add_system(paddle_move_system.system())
+        .add_system(scoreboard_system.system())
+        .add_system(score_system.system())
         .run();
 }
 
@@ -40,35 +49,111 @@ fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut windows: ResMut<Windows>,
+    asset_server: Res<AssetServer>,
     ) {
     windows.get_primary_mut().unwrap().update_scale_factor_from_backend(1.0);
+    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+    commands.spawn_bundle(UiCameraBundle::default());
     commands
-        .spawn(OrthographicCameraBundle::new_2d())
-        .spawn(UiCameraBundle::default());
-    commands
-        .spawn(SpriteBundle {
+        .spawn_bundle(SpriteBundle {
             material: materials.add(Color::rgb(1.0, 1.0, 1.0).into()),
             transform: Transform::from_xyz(-WINDOW_WIDTH / 2.0 + 35.0, 0.0, 0.0),
             sprite: Sprite::new(Vec2::new(30.0, 240.0)),
             ..Default::default()
         })
-        .with(Paddle {side: Side::Left});
+        .insert(Paddle {side: Side::Left});
     commands
-        .spawn(SpriteBundle {
+        .spawn_bundle(SpriteBundle {
             material: materials.add(Color::rgb(1.0, 1.0, 1.0).into()),
             transform: Transform::from_xyz(WINDOW_WIDTH / 2.0 - 35.0, 0.0, 0.0),
             sprite: Sprite::new(Vec2::new(30.0, 240.0)),
             ..Default::default()
         })
-        .with(Paddle {side: Side::Right});
+        .insert(Paddle {side: Side::Right});
     commands
-        .spawn(SpriteBundle {
+        .spawn_bundle(SpriteBundle {
             material: materials.add(Color::rgb(1.0, 1.0, 1.0).into()),
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             sprite: Sprite::new(Vec2::new(8.0, 8.0)),
             ..Default::default()
         })
-        .with(Ball {velocity: Vec2::new(256.0, 256.0)});
+        .insert(Ball {velocity: Vec2::new(256.0, 256.0)});
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    top: Val::Px(0.0),
+                    left: Val::Px(0.0),
+                    ..Default::default()
+                },
+                flex_direction: FlexDirection::Row,
+                size: Size::new(Val::Percent(100.0), Val::Undefined),
+                justify_content: JustifyContent::SpaceAround,
+                align_items: AlignItems::Center,
+                ..Default::default()
+            },
+            visible: Visible {
+                is_visible: false,
+                is_transparent: false,
+            },
+            ..Default::default()
+        }).with_children(|parent| {
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![
+                            TextSection {
+                                value: "0".to_string(),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 40.0,
+                                    color: Color::rgb(1.0, 1.0, 1.0),
+                                }
+                            }
+                        ],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(Side::Left);
+            parent.spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![
+                            TextSection {
+                                value: "0".to_string(),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 40.0,
+                                    color: Color::rgb(1.0, 1.0, 1.0),
+                                }
+                            }
+                        ],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(Side::Right);
+        });
+}
+
+fn score_system(
+    mut scores: ResMut<Scores>,
+    mut query: Query<(&mut Ball, &mut Transform)>,
+) {
+    for (mut ball, mut transform) in query.iter_mut() {
+        if transform.translation.x > WINDOW_WIDTH / 2.0 {
+            // Left scored
+            ball.velocity = Vec2::new(256.0, 256.0);
+            transform.translation = Vec3::ZERO;
+            scores.left += 1;
+        } else if transform.translation.x < -WINDOW_WIDTH / 2.0 {
+            // Right scored
+            ball.velocity = Vec2::new(256.0, 256.0);
+            transform.translation = Vec3::ZERO;
+            scores.right += 1;
+        }
+    }
 }
 
 fn paddle_move_system(
@@ -150,6 +235,22 @@ fn ball_paddle_bounce_system(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+fn scoreboard_system(
+    scores: Res<Scores>,
+    mut query: Query<(&mut Text, &Side)>,
+) {
+    for (mut text, side) in query.iter_mut() {
+        match side {
+            Side::Left => {
+                text.sections[0].value = format!("{}", scores.left);
+            },
+            Side::Right => {
+                text.sections[0].value = format!("{}", scores.right);
             }
         }
     }
